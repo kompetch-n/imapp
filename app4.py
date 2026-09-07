@@ -1,11 +1,10 @@
-
 # ============================================================
 # Streamlit - MongoDB Lab Test Vector Search
 #
 # Database  : lab_db
 # Collection: test_catalog
 #
-# Main Function:
+# Function:
 # 1. Connect MongoDB Atlas
 # 2. Load Sentence Transformer
 # 3. Create embedding text
@@ -111,20 +110,26 @@ st.title(
     "🧬 Lab Test Vector Search"
 )
 
-st.caption(
-    "ค้นหาข้อมูลการตรวจทางห้องปฏิบัติการ "
-    "ด้วย Semantic Vector Search"
+st.markdown(
+    """
+    เครื่องมือสำหรับค้นหาข้อมูลการตรวจทางห้องปฏิบัติการ
+    ด้วย **Semantic Vector Search**
+
+    ระบบจะนำคำค้นของผู้ใช้ไปสร้าง Vector
+    แล้วค้นหาข้อมูลที่มีความหมายใกล้เคียงกัน
+    จาก MongoDB Atlas
+    """
 )
 
 
 # ============================================================
-# 7. Sidebar Configuration
+# 7. Sidebar
 # ============================================================
 
 with st.sidebar:
 
     st.header(
-        "⚙️ System Configuration"
+        "⚙️ Configuration"
     )
 
     st.write(
@@ -167,22 +172,12 @@ with st.sidebar:
         VECTOR_FIELD
     )
 
-    st.divider()
-
-    st.subheader(
-        "Vector Configuration"
+    st.write(
+        "Vector Dimensions"
     )
 
-    st.write(
-        f"Dimensions: {EXPECTED_VECTOR_DIMENSIONS}"
-    )
-
-    st.write(
-        f"Top Results: {VECTOR_SEARCH_LIMIT}"
-    )
-
-    st.write(
-        f"Candidates: {VECTOR_SEARCH_CANDIDATES}"
+    st.info(
+        f"{EXPECTED_VECTOR_DIMENSIONS} dimensions"
     )
 
     st.divider()
@@ -197,6 +192,20 @@ with st.sidebar:
             f"• {field}"
         )
 
+    st.divider()
+
+    st.subheader(
+        "Vector Search"
+    )
+
+    st.write(
+        f"Top Results: {VECTOR_SEARCH_LIMIT}"
+    )
+
+    st.write(
+        f"Candidates: {VECTOR_SEARCH_CANDIDATES}"
+    )
+
 
 # ============================================================
 # 8. Check MongoDB URI
@@ -205,7 +214,7 @@ with st.sidebar:
 if not MONGODB_URI:
 
     st.error(
-        "❌ ไม่พบ MONGODB_URI"
+        "ไม่พบ MONGODB_URI"
     )
 
     st.info(
@@ -265,7 +274,7 @@ def load_embedding_model():
 
 
 # ============================================================
-# 11. MongoDB Connection
+# 11. Connect MongoDB
 # ============================================================
 
 try:
@@ -274,10 +283,14 @@ try:
         get_mongodb_collection()
     )
 
+    st.success(
+        "🟢 MongoDB Atlas connection: OK"
+    )
+
 except Exception as e:
 
     st.error(
-        "❌ ไม่สามารถเชื่อมต่อ MongoDB Atlas ได้"
+        "ไม่สามารถเชื่อมต่อ MongoDB Atlas ได้"
     )
 
     st.exception(
@@ -302,7 +315,7 @@ try:
 except Exception as e:
 
     st.error(
-        "❌ ไม่สามารถโหลด Embedding Model ได้"
+        "ไม่สามารถโหลด Embedding Model ได้"
     )
 
     st.exception(
@@ -324,9 +337,7 @@ try:
 
 except Exception:
 
-    vector_dimension = (
-        EXPECTED_VECTOR_DIMENSIONS
-    )
+    vector_dimension = EXPECTED_VECTOR_DIMENSIONS
 
 
 # ============================================================
@@ -413,34 +424,20 @@ def get_vector_search_index():
 def create_vector_search_index():
 
     index_definition = {
-
         "fields": [
-
             {
                 "type": "vector",
-
                 "path": VECTOR_FIELD,
-
-                "numDimensions":
-                    EXPECTED_VECTOR_DIMENSIONS,
-
-                "similarity":
-                    "cosine",
+                "numDimensions": EXPECTED_VECTOR_DIMENSIONS,
+                "similarity": "cosine",
             }
-
         ]
     }
 
     search_index_model = SearchIndexModel(
-
-        definition=
-            index_definition,
-
-        name=
-            VECTOR_INDEX_NAME,
-
-        type=
-            "vectorSearch",
+        definition=index_definition,
+        name=VECTOR_INDEX_NAME,
+        type="vectorSearch",
     )
 
     result = (
@@ -453,7 +450,422 @@ def create_vector_search_index():
 
 
 # ============================================================
-# 18. Vector Search Function
+# 18. Check Vector Search Index
+# ============================================================
+
+vector_index, vector_index_error = (
+    get_vector_search_index()
+)
+
+
+# ============================================================
+# 19. Vector Search Index Status
+# ============================================================
+
+st.divider()
+
+st.subheader(
+    "🗂️ Vector Search Index"
+)
+
+
+if vector_index_error:
+
+    st.error(
+        "ไม่สามารถตรวจสอบ Vector Search Index ได้"
+    )
+
+    st.code(
+        str(
+            vector_index_error
+        )
+    )
+
+    st.info(
+        """
+        ตรวจสอบสิทธิ์ของ MongoDB User
+        ว่าสามารถอ่าน Search Index ได้
+        """
+    )
+
+
+elif vector_index is None:
+
+    st.warning(
+        f"""
+        🟡 ยังไม่พบ Vector Search Index
+
+        Index ที่ระบบต้องการ:
+
+        `{VECTOR_INDEX_NAME}`
+        """
+    )
+
+    st.code(
+        """
+{
+  "fields": [
+    {
+      "type": "vector",
+      "path": "embedding",
+      "numDimensions": 384,
+      "similarity": "cosine"
+    }
+  ]
+}
+        """,
+        language="json",
+    )
+
+    if st.button(
+        "🛠️ สร้าง Vector Search Index",
+        type="primary",
+        width="stretch",
+    ):
+
+        try:
+
+            with st.spinner(
+                "กำลังสร้าง Vector Search Index..."
+            ):
+
+                create_vector_search_index()
+
+            st.success(
+                f"""
+                สร้าง Index `{VECTOR_INDEX_NAME}`
+                เรียบร้อยแล้ว
+
+                MongoDB กำลังสร้าง Index
+                กรุณารอสักครู่
+                """
+            )
+
+            time.sleep(2)
+
+            st.rerun()
+
+        except Exception as e:
+
+            st.error(
+                "ไม่สามารถสร้าง Vector Search Index ได้"
+            )
+
+            st.exception(
+                e
+            )
+
+            st.info(
+                """
+                ถ้ามี Index ชื่อนี้อยู่แล้ว
+                แต่อ่านสถานะไม่ได้
+                ให้ตรวจสอบ Index ใน MongoDB Atlas
+                """
+            )
+
+
+else:
+
+    index_status = vector_index.get(
+        "status",
+        "UNKNOWN",
+    )
+
+    index_queryable = vector_index.get(
+        "queryable",
+        False,
+    )
+
+    index_type = vector_index.get(
+        "type",
+        "unknown",
+    )
+
+    index_definition = vector_index.get(
+        "latestDefinition",
+        {},
+    )
+
+    status_col1, status_col2, status_col3 = (
+        st.columns(3)
+    )
+
+    with status_col1:
+
+        st.metric(
+            "Index",
+            VECTOR_INDEX_NAME,
+        )
+
+    with status_col2:
+
+        st.metric(
+            "Status",
+            index_status,
+        )
+
+    with status_col3:
+
+        st.metric(
+            "Queryable",
+            "YES"
+            if index_queryable
+            else "NO",
+        )
+
+    if (
+        index_status == "READY"
+        and index_queryable
+    ):
+
+        st.success(
+            "🟢 Vector Search Index พร้อมใช้งาน"
+        )
+
+    elif index_status == "BUILDING":
+
+        st.warning(
+            """
+            🟡 MongoDB กำลังสร้าง Vector Search Index
+
+            กรุณารอจนสถานะเป็น READY
+            """
+        )
+
+    elif index_status == "FAILED":
+
+        st.error(
+            """
+            🔴 Vector Search Index FAILED
+
+            กรุณาตรวจสอบ definition ของ Index
+            ใน MongoDB Atlas
+            """
+        )
+
+    else:
+
+        st.warning(
+            f"""
+            🟡 Vector Search Index ยังไม่พร้อม
+
+            Status:
+            {index_status}
+
+            Queryable:
+            {index_queryable}
+            """
+        )
+
+    with st.expander(
+        "🔍 Index Definition",
+        expanded=False,
+    ):
+
+        st.json(
+            index_definition
+        )
+
+    st.caption(
+        f"Index Type: {index_type}"
+    )
+
+
+# ============================================================
+# 20. Database Statistics
+# ============================================================
+
+total_documents = (
+    collection.count_documents({})
+)
+
+vector_documents = (
+    collection.count_documents(
+        {
+            VECTOR_FIELD: {
+                "$exists": True
+            }
+        }
+    )
+)
+
+remaining_documents = (
+    total_documents
+    - vector_documents
+)
+
+
+# ============================================================
+# 21. Database Status
+# ============================================================
+
+st.divider()
+
+st.subheader(
+    "📊 Database Status"
+)
+
+col1, col2, col3, col4 = (
+    st.columns(4)
+)
+
+with col1:
+
+    st.metric(
+        "Documents",
+        total_documents,
+    )
+
+with col2:
+
+    st.metric(
+        "มี Vector แล้ว",
+        vector_documents,
+    )
+
+with col3:
+
+    st.metric(
+        "ยังไม่มี Vector",
+        remaining_documents,
+    )
+
+with col4:
+
+    st.metric(
+        "Vector Dimensions",
+        vector_dimension,
+    )
+
+
+# ============================================================
+# 22. Vector Data Validation
+# ============================================================
+
+invalid_vector_documents = 0
+
+sample_vectors = collection.find(
+    {
+        VECTOR_FIELD: {
+            "$exists": True
+        }
+    },
+    {
+        VECTOR_FIELD: 1
+    },
+).limit(100)
+
+for item in sample_vectors:
+
+    vector = item.get(
+        VECTOR_FIELD,
+        [],
+    )
+
+    if (
+        not isinstance(
+            vector,
+            list,
+        )
+        or len(vector)
+        != EXPECTED_VECTOR_DIMENSIONS
+    ):
+
+        invalid_vector_documents += 1
+
+
+if vector_documents > 0:
+
+    if invalid_vector_documents == 0:
+
+        st.success(
+            f"""
+            🟢 ตรวจสอบ Vector เบื้องต้นผ่าน
+
+            พบ Vector:
+            {vector_documents:,} รายการ
+
+            Dimensions:
+            {EXPECTED_VECTOR_DIMENSIONS}
+            """
+        )
+
+    else:
+
+        st.warning(
+            f"""
+            🟡 พบ Vector ที่อาจมีปัญหา
+            จากตัวอย่างที่ตรวจสอบ:
+
+            {invalid_vector_documents:,} รายการ
+            """
+        )
+
+
+# ============================================================
+# 23. Semantic Vector Search
+# ============================================================
+
+st.divider()
+
+st.subheader(
+    "🔎 Semantic Vector Search"
+)
+
+st.caption(
+    """
+    ค้นหาจากความหมายของคำค้น
+    ไม่จำเป็นต้องตรงกับข้อความในฐานข้อมูลแบบคำต่อคำ
+    """
+)
+
+
+# ============================================================
+# 24. Search Input
+# ============================================================
+
+search_text = st.text_input(
+    "ค้นหา Lab Test",
+    placeholder=(
+        "เช่น ตรวจหาโรคซิฟิลิส, "
+        "ตรวจ antibody, "
+        "ตรวจโรคติดเชื้อจากเลือด..."
+    ),
+    type="default",
+)
+
+
+# ============================================================
+# 25. Search Settings
+# ============================================================
+
+search_col1, search_col2 = (
+    st.columns(2)
+)
+
+with search_col1:
+
+    result_limit = st.slider(
+        "จำนวนผลลัพธ์",
+        min_value=1,
+        max_value=20,
+        value=10,
+        step=1,
+    )
+
+with search_col2:
+
+    candidate_count = st.slider(
+        "จำนวน Candidates",
+        min_value=20,
+        max_value=500,
+        value=100,
+        step=10,
+    )
+
+
+# ============================================================
+# 26. Vector Search Function
 # ============================================================
 
 def vector_search(
@@ -479,9 +891,7 @@ def vector_search(
     # Validate Query Vector
     # --------------------------------------------------------
 
-    if len(query_vector) != (
-        EXPECTED_VECTOR_DIMENSIONS
-    ):
+    if len(query_vector) != EXPECTED_VECTOR_DIMENSIONS:
 
         raise ValueError(
             f"""
@@ -512,10 +922,7 @@ def vector_search(
                     query_vector,
 
                 "numCandidates":
-                    max(
-                        num_candidates,
-                        limit,
-                    ),
+                    num_candidates,
 
                 "limit":
                     limit,
@@ -572,187 +979,12 @@ def vector_search(
 
 
 # ============================================================
-# 19. Database Statistics
-# ============================================================
-
-total_documents = (
-    collection.count_documents({})
-)
-
-vector_documents = (
-    collection.count_documents(
-        {
-            VECTOR_FIELD: {
-                "$exists": True
-            }
-        }
-    )
-)
-
-remaining_documents = (
-    total_documents
-    - vector_documents
-)
-
-
-# ============================================================
-# 20. Get Vector Search Index
-# ============================================================
-
-vector_index, vector_index_error = (
-    get_vector_search_index()
-)
-
-
-# ============================================================
-# ============================================================
-# 21. MAIN SEARCH AREA
-# ============================================================
-# ============================================================
-
-st.divider()
-
-st.subheader(
-    "🔎 ค้นหา Lab Test"
-)
-
-st.caption(
-    "พิมพ์คำอธิบาย อาการ สิ่งส่งตรวจ "
-    "หรือวัตถุประสงค์ของการตรวจได้เลย "
-    "ระบบจะค้นหาจากความหมายของข้อมูล"
-)
-
-
-# ============================================================
-# 22. Search Input
-# ============================================================
-
-search_text = st.text_input(
-
-    "ค้นหา",
-
-    placeholder=(
-        "เช่น ตรวจหาโรคซิฟิลิส, "
-        "ตรวจ antibody, "
-        "ตรวจโรคติดเชื้อจากเลือด, "
-        "ตรวจฮอร์โมน..."
-    ),
-
-    type="default",
-
-    label_visibility="collapsed",
-)
-
-
-# ============================================================
-# 23. Search Settings
-# ============================================================
-
-search_col1, search_col2 = (
-    st.columns(2)
-)
-
-with search_col1:
-
-    result_limit = st.slider(
-
-        "จำนวนผลลัพธ์",
-
-        min_value=1,
-
-        max_value=20,
-
-        value=10,
-
-        step=1,
-    )
-
-
-with search_col2:
-
-    candidate_count = st.slider(
-
-        "จำนวน Candidates",
-
-        min_value=20,
-
-        max_value=500,
-
-        value=100,
-
-        step=10,
-    )
-
-
-# ============================================================
-# 24. Search Status
-# ============================================================
-
-if vector_index_error:
-
-    st.error(
-        "❌ ไม่สามารถตรวจสอบ Vector Search Index ได้"
-    )
-
-    st.code(
-        str(
-            vector_index_error
-        )
-    )
-
-
-elif vector_index is None:
-
-    st.warning(
-        f"""
-        🟡 ยังไม่พบ Vector Search Index
-
-        Required Index:
-
-        `{VECTOR_INDEX_NAME}`
-        """
-    )
-
-
-elif not vector_index.get(
-    "queryable",
-    False,
-):
-
-    st.warning(
-        f"""
-        🟡 Vector Search Index ยังไม่พร้อม
-
-        Status:
-        `{vector_index.get("status", "UNKNOWN")}`
-
-        Queryable:
-        `{vector_index.get("queryable", False)}`
-
-        กรุณารอจน Index เป็น READY
-        """
-    )
-
-
-else:
-
-    st.success(
-        f"""
-        🟢 Vector Search พร้อมใช้งาน
-        • {vector_documents:,} documents มี Vector
-        • Index: `{VECTOR_INDEX_NAME}`
-        """
-    )
-
-
-# ============================================================
-# 25. Execute Search
+# 27. Execute Vector Search
 # ============================================================
 
 search_documents = []
 
 query_vector = []
-
 
 if search_text.strip():
 
@@ -771,9 +1003,9 @@ if search_text.strip():
             """
             ❌ ยังไม่มี Vector ใน MongoDB
 
-            กรุณาสร้าง Vector
-            ในส่วน "สร้าง Vector"
-            ด้านล่าง
+            กรุณากด
+            "เริ่มสร้าง Vector"
+            ก่อน
             """
         )
 
@@ -781,7 +1013,9 @@ if search_text.strip():
     # Check Index
     # --------------------------------------------------------
 
-    elif vector_index is None:
+    elif (
+        vector_index is None
+    ):
 
         st.error(
             f"""
@@ -817,6 +1051,8 @@ if search_text.strip():
                 "queryable",
                 False
             )}
+
+            กรุณารอจน Index เป็น READY
             """
         )
 
@@ -827,7 +1063,7 @@ if search_text.strip():
     else:
 
         with st.spinner(
-            "🔍 กำลังค้นหา..."
+            "กำลังค้นหาด้วย Vector Search..."
         ):
 
             try:
@@ -836,20 +1072,154 @@ if search_text.strip():
                     search_documents,
                     query_vector,
                 ) = vector_search(
-
                     keyword,
-
-                    limit=
-                        result_limit,
-
-                    num_candidates=
-                        candidate_count,
+                    limit=result_limit,
+                    num_candidates=candidate_count,
                 )
+
+                # ------------------------------------------------
+                # Search Summary
+                # ------------------------------------------------
+
+                st.success(
+                    f"""
+                    🔎 ค้นหา:
+
+                    **{keyword}**
+
+                    พบผลลัพธ์:
+                    **{len(search_documents):,} รายการ**
+                    """
+                )
+
+                # ------------------------------------------------
+                # Query Vector
+                # ------------------------------------------------
+
+                with st.expander(
+                    "🧠 Query Vector",
+                    expanded=False,
+                ):
+
+                    st.write(
+                        "Query:"
+                    )
+
+                    st.code(
+                        keyword
+                    )
+
+                    st.write(
+                        "Dimensions:"
+                    )
+
+                    st.code(
+                        str(
+                            len(
+                                query_vector
+                            )
+                        )
+                    )
+
+                    st.write(
+                        "Vector Preview:"
+                    )
+
+                    st.code(
+                        str(
+                            query_vector[:20]
+                        )
+                        + " ..."
+                    )
+
+                # ------------------------------------------------
+                # Search Results
+                # ------------------------------------------------
+
+                if search_documents:
+
+                    st.subheader(
+                        "📊 Search Results"
+                    )
+
+                    search_rows = []
+
+                    for rank, document in enumerate(
+                        search_documents,
+                        start=1,
+                    ):
+
+                        score = float(
+                            document.get(
+                                "score",
+                                0,
+                            )
+                        )
+
+                        search_rows.append(
+                            {
+                                "อันดับ":
+                                    rank,
+
+                                "Similarity":
+                                    round(
+                                        score,
+                                        4,
+                                    ),
+
+                                "รหัส":
+                                    document.get(
+                                        "รหัส",
+                                        "",
+                                    ),
+
+                                "ชื่อการทดสอบ":
+                                    document.get(
+                                        "ชื่อการทดสอบ",
+                                        "",
+                                    ),
+
+                                "ข้อบ่งชี้":
+                                    document.get(
+                                        "ข้อบ่งชี้การทดสอบ",
+                                        "",
+                                    ),
+
+                                "วิธีการตรวจ":
+                                    document.get(
+                                        "วิธีการตรวจวิเคราะห์",
+                                        "",
+                                    ),
+                            }
+                        )
+
+                    search_df = pd.DataFrame(
+                        search_rows
+                    )
+
+                    st.dataframe(
+                        search_df,
+                        width="stretch",
+                        hide_index=True,
+                    )
+
+                else:
+
+                    st.warning(
+                        """
+                        ไม่พบผลลัพธ์จาก Vector Search
+
+                        ถ้า Vector มีครบและ Index
+                        เป็น READY แล้ว
+                        เราสามารถตรวจสอบข้อมูล Vector
+                        และ Index Definition ต่อได้
+                        """
+                    )
 
             except Exception as e:
 
                 st.error(
-                    "❌ เกิดข้อผิดพลาดในการทำ Vector Search"
+                    "เกิดข้อผิดพลาดในการทำ Vector Search"
                 )
 
                 st.exception(
@@ -858,111 +1228,7 @@ if search_text.strip():
 
 
 # ============================================================
-# 26. Search Results
-# ============================================================
-
-if search_text.strip():
-
-    st.divider()
-
-    if search_documents:
-
-        st.success(
-            f"""
-            🔎 ผลการค้นหา
-            **{search_text.strip()}**
-
-            พบ **{len(search_documents):,} รายการ**
-            """
-        )
-
-        search_rows = []
-
-        for rank, document in enumerate(
-            search_documents,
-            start=1,
-        ):
-
-            score = float(
-                document.get(
-                    "score",
-                    0,
-                )
-            )
-
-            search_rows.append(
-                {
-                    "อันดับ":
-                        rank,
-
-                    "Similarity":
-                        round(
-                            score,
-                            4,
-                        ),
-
-                    "รหัส":
-                        document.get(
-                            "รหัส",
-                            "",
-                        ),
-
-                    "ชื่อการทดสอบ":
-                        document.get(
-                            "ชื่อการทดสอบ",
-                            "",
-                        ),
-
-                    "ข้อบ่งชี้":
-                        document.get(
-                            "ข้อบ่งชี้การทดสอบ",
-                            "",
-                        ),
-
-                    "วิธีการตรวจ":
-                        document.get(
-                            "วิธีการตรวจวิเคราะห์",
-                            "",
-                        ),
-                }
-            )
-
-        search_df = pd.DataFrame(
-            search_rows
-        )
-
-        st.dataframe(
-
-            search_df,
-
-            width="stretch",
-
-            hide_index=True,
-
-            column_config={
-
-                "Similarity":
-                    st.column_config.NumberColumn(
-                        "Similarity",
-                        format="%.4f",
-                    ),
-
-            },
-        )
-
-    else:
-
-        st.warning(
-            f"""
-            ไม่พบผลลัพธ์สำหรับ:
-
-            **{search_text.strip()}**
-            """
-        )
-
-
-# ============================================================
-# 27. Selected Search Result
+# 28. Selected Search Result
 # ============================================================
 
 if search_documents:
@@ -974,21 +1240,14 @@ if search_documents:
     )
 
     selected_index = st.selectbox(
-
         "เลือกรายการ",
-
         range(
             len(search_documents)
         ),
-
         format_func=lambda index: (
-
             f"{search_documents[index].get('รหัส', '')} - "
-
             f"{search_documents[index].get('ชื่อการทดสอบ', '')} "
-
             f"(score: "
-
             f"{float(search_documents[index].get('score', 0)):.4f})"
         ),
     )
@@ -1083,19 +1342,12 @@ if search_documents:
     ):
 
         for field in [
-
             "วิธีการตรวจวิเคราะห์",
-
             "สิ่งส่งตรวจ/ปริมาตร (ml) Preservative",
-
             "การนำส่งและข้อควรระวัง",
-
             "ค่าอ้างอิง sensitivity/Detection Range",
-
             "ข้อบ่งชี้การทดสอบ",
-
             "รายงานผลปกติ",
-
         ]:
 
             st.markdown(
@@ -1139,17 +1391,10 @@ if search_documents:
         if embedding_text:
 
             st.text_area(
-
                 "Embedding Text",
-
-                value=
-                    embedding_text,
-
-                height=
-                    250,
-
-                label_visibility=
-                    "collapsed",
+                value=embedding_text,
+                height=250,
+                label_visibility="collapsed",
             )
 
         else:
@@ -1222,350 +1467,18 @@ if search_documents:
 
 
 # ============================================================
-# ============================================================
-# 28. SYSTEM / ADMIN AREA
-# ============================================================
+# 29. Preview Data
 # ============================================================
 
 st.divider()
-
-st.subheader(
-    "⚙️ System Information"
-)
-
-st.caption(
-    "ส่วนนี้ใช้ตรวจสอบและจัดการ Vector Search "
-    "สำหรับการตั้งค่าระบบ"
-)
-
-
-# ============================================================
-# 29. Database Status
-# ============================================================
-
-status_col1, status_col2, status_col3, status_col4 = (
-    st.columns(4)
-)
-
-with status_col1:
-
-    st.metric(
-        "Documents",
-        total_documents,
-    )
-
-with status_col2:
-
-    st.metric(
-        "มี Vector แล้ว",
-        vector_documents,
-    )
-
-with status_col3:
-
-    st.metric(
-        "ยังไม่มี Vector",
-        remaining_documents,
-    )
-
-with status_col4:
-
-    st.metric(
-        "Vector Dimensions",
-        vector_dimension,
-    )
-
-
-# ============================================================
-# 30. Vector Search Index
-# ============================================================
-
-st.subheader(
-    "🗂️ Vector Search Index"
-)
-
-
-if vector_index_error:
-
-    st.error(
-        "ไม่สามารถตรวจสอบ Vector Search Index ได้"
-    )
-
-    st.code(
-        str(
-            vector_index_error
-        )
-    )
-
-
-elif vector_index is None:
-
-    st.warning(
-        f"""
-        🟡 ยังไม่พบ Vector Search Index
-
-        Index ที่ระบบต้องการ:
-
-        `{VECTOR_INDEX_NAME}`
-        """
-    )
-
-    st.code(
-        """
-{
-  "fields": [
-    {
-      "type": "vector",
-      "path": "embedding",
-      "numDimensions": 384,
-      "similarity": "cosine"
-    }
-  ]
-}
-        """,
-        language="json",
-    )
-
-    if st.button(
-
-        "🛠️ สร้าง Vector Search Index",
-
-        type="primary",
-
-        width="stretch",
-
-    ):
-
-        try:
-
-            with st.spinner(
-                "กำลังสร้าง Vector Search Index..."
-            ):
-
-                create_vector_search_index()
-
-            st.success(
-                f"""
-                สร้าง Index
-                `{VECTOR_INDEX_NAME}`
-                เรียบร้อยแล้ว
-
-                MongoDB กำลังสร้าง Index
-                กรุณารอสักครู่
-                """
-            )
-
-            time.sleep(2)
-
-            st.rerun()
-
-        except Exception as e:
-
-            st.error(
-                "ไม่สามารถสร้าง Vector Search Index ได้"
-            )
-
-            st.exception(
-                e
-            )
-
-
-else:
-
-    index_status = vector_index.get(
-        "status",
-        "UNKNOWN",
-    )
-
-    index_queryable = vector_index.get(
-        "queryable",
-        False,
-    )
-
-    index_type = vector_index.get(
-        "type",
-        "unknown",
-    )
-
-    index_definition = vector_index.get(
-        "latestDefinition",
-        {},
-    )
-
-    index_col1, index_col2, index_col3 = (
-        st.columns(3)
-    )
-
-    with index_col1:
-
-        st.metric(
-            "Index",
-            VECTOR_INDEX_NAME,
-        )
-
-    with index_col2:
-
-        st.metric(
-            "Status",
-            index_status,
-        )
-
-    with index_col3:
-
-        st.metric(
-            "Queryable",
-            "YES"
-            if index_queryable
-            else "NO",
-        )
-
-    if (
-        index_status == "READY"
-        and index_queryable
-    ):
-
-        st.success(
-            "🟢 Vector Search Index พร้อมใช้งาน"
-        )
-
-    elif index_status == "BUILDING":
-
-        st.warning(
-            """
-            🟡 MongoDB กำลังสร้าง Vector Search Index
-
-            กรุณารอจนสถานะเป็น READY
-            """
-        )
-
-    elif index_status == "FAILED":
-
-        st.error(
-            """
-            🔴 Vector Search Index FAILED
-
-            กรุณาตรวจสอบ definition ของ Index
-            ใน MongoDB Atlas
-            """
-        )
-
-    else:
-
-        st.warning(
-            f"""
-            🟡 Vector Search Index ยังไม่พร้อม
-
-            Status:
-            {index_status}
-
-            Queryable:
-            {index_queryable}
-            """
-        )
-
-    with st.expander(
-        "🔍 Index Definition",
-        expanded=False,
-    ):
-
-        st.json(
-            index_definition
-        )
-
-    st.caption(
-        f"Index Type: {index_type}"
-    )
-
-
-# ============================================================
-# 31. Vector Data Validation
-# ============================================================
-
-st.subheader(
-    "🔍 Vector Validation"
-)
-
-invalid_vector_documents = 0
-
-sample_vectors = collection.find(
-
-    {
-        VECTOR_FIELD: {
-            "$exists": True
-        }
-    },
-
-    {
-        VECTOR_FIELD: 1
-    },
-
-).limit(100)
-
-
-for item in sample_vectors:
-
-    vector = item.get(
-        VECTOR_FIELD,
-        [],
-    )
-
-    if (
-
-        not isinstance(
-            vector,
-            list,
-        )
-
-        or len(vector)
-        != EXPECTED_VECTOR_DIMENSIONS
-
-    ):
-
-        invalid_vector_documents += 1
-
-
-if vector_documents > 0:
-
-    if invalid_vector_documents == 0:
-
-        st.success(
-            f"""
-            🟢 ตรวจสอบ Vector เบื้องต้นผ่าน
-
-            พบ Vector:
-            {vector_documents:,} รายการ
-
-            Dimensions:
-            {EXPECTED_VECTOR_DIMENSIONS}
-            """
-        )
-
-    else:
-
-        st.warning(
-            f"""
-            🟡 พบ Vector ที่อาจมีปัญหา
-            จากตัวอย่างที่ตรวจสอบ:
-
-            {invalid_vector_documents:,} รายการ
-            """
-        )
-
-
-# ============================================================
-# 32. Preview Data
-# ============================================================
 
 st.subheader(
     "👀 Preview Data"
 )
 
 preview_documents = list(
-
     collection.find(
-
         {},
-
         {
             "_id": 0,
 
@@ -1577,14 +1490,11 @@ preview_documents = list(
 
             VECTOR_FIELD: 1,
         },
-
     )
-
     .sort(
         "รหัส",
         1,
     )
-
     .limit(10)
 )
 
@@ -1631,11 +1541,8 @@ if preview_documents:
     )
 
     st.dataframe(
-
         preview_df,
-
         width="stretch",
-
         hide_index=True,
     )
 
@@ -1647,7 +1554,7 @@ else:
 
 
 # ============================================================
-# 33. Preview Embedding Text
+# 30. Preview Embedding Text
 # ============================================================
 
 st.subheader(
@@ -1661,7 +1568,6 @@ sample_document = collection.find_one(
     },
 )
 
-
 if sample_document:
 
     sample_text = (
@@ -1671,34 +1577,28 @@ if sample_document:
     )
 
     st.text_area(
-
         "Embedding Text",
-
-        value=
-            sample_text,
-
-        height=
-            250,
+        value=sample_text,
+        height=250,
     )
 
 
 # ============================================================
-# 34. Vectorize Options
+# 31. Vectorize Options
 # ============================================================
+
+st.divider()
 
 st.subheader(
     "🚀 สร้าง Vector"
 )
 
 option = st.radio(
-
     "เลือกข้อมูลที่จะสร้าง Vector",
-
     [
         "เฉพาะข้อมูลที่ยังไม่มี Vector",
         "สร้างใหม่ทั้งหมด",
     ],
-
     horizontal=True,
 )
 
@@ -1709,11 +1609,9 @@ if (
 ):
 
     vectorize_query = {
-
         VECTOR_FIELD: {
             "$exists": False
         }
-
     }
 
 else:
@@ -1722,7 +1620,7 @@ else:
 
 
 # ============================================================
-# 35. Count Target Documents
+# 32. Count Target Documents
 # ============================================================
 
 target_count = (
@@ -1730,7 +1628,6 @@ target_count = (
         vectorize_query
     )
 )
-
 
 st.info(
     f"""
@@ -1741,17 +1638,13 @@ st.info(
 
 
 # ============================================================
-# 36. Generate Vector Button
+# 33. Generate Vector Button
 # ============================================================
 
 if st.button(
-
     "🧬 เริ่มสร้าง Vector",
-
     type="primary",
-
     width="stretch",
-
 ):
 
     if target_count == 0:
@@ -1763,11 +1656,8 @@ if st.button(
     else:
 
         progress = st.progress(
-
             0,
-
-            text=
-                "กำลังเตรียมข้อมูล...",
+            text="กำลังเตรียมข้อมูล...",
         )
 
         status_text = st.empty()
@@ -1778,19 +1668,14 @@ if st.button(
 
         errors = []
 
-
         # ----------------------------------------------------
         # Read target documents
         # ----------------------------------------------------
 
         documents = list(
-
             collection.find(
-
                 vectorize_query,
-
                 {
-
                     "_id": 1,
 
                     "รหัส": 1,
@@ -1808,28 +1693,21 @@ if st.button(
                     "ข้อบ่งชี้การทดสอบ": 1,
 
                     "รายงานผลปกติ": 1,
-
                 },
-
             )
-
             .sort(
                 "รหัส",
                 1,
             )
         )
 
-
         # ----------------------------------------------------
         # Process
         # ----------------------------------------------------
 
         for index, document in enumerate(
-
             documents,
-
             start=1,
-
         ):
 
             try:
@@ -1855,7 +1733,6 @@ if st.button(
                     """
                 )
 
-
                 # ------------------------------------------------
                 # Create embedding text
                 # ------------------------------------------------
@@ -1866,26 +1743,20 @@ if st.button(
                     )
                 )
 
-
                 if not embedding_text:
 
                     raise ValueError(
                         "ไม่มีข้อมูลสำหรับสร้าง embedding"
                     )
 
-
                 # ------------------------------------------------
                 # Generate embedding
                 # ------------------------------------------------
 
                 vector = model.encode(
-
                     embedding_text,
-
                     normalize_embeddings=True,
-
                 )
-
 
                 # ------------------------------------------------
                 # Convert numpy -> list
@@ -1895,19 +1766,15 @@ if st.button(
                     vector.tolist()
                 )
 
-
                 # ------------------------------------------------
                 # Validate vector
                 # ------------------------------------------------
 
                 if len(vector_list) != (
-
                     EXPECTED_VECTOR_DIMENSIONS
-
                 ):
 
                     raise ValueError(
-
                         f"""
                         Vector dimensions ไม่ถูกต้อง
 
@@ -1917,21 +1784,17 @@ if st.button(
                         ต้องเป็น:
                         {EXPECTED_VECTOR_DIMENSIONS}
                         """
-
                     )
-
 
                 # ------------------------------------------------
                 # Update MongoDB
                 # ------------------------------------------------
 
                 collection.update_one(
-
                     {
                         "_id":
                             document["_id"]
                     },
-
                     {
                         "$set": {
 
@@ -1946,25 +1809,18 @@ if st.button(
 
                             DIMENSION_FIELD:
                                 vector_dimension,
-
                         }
-
                     },
-
                 )
 
-
                 success_count += 1
-
 
             except Exception as e:
 
                 error_count += 1
 
                 errors.append(
-
                     {
-
                         "รหัส":
                             document.get(
                                 "รหัส"
@@ -1977,11 +1833,8 @@ if st.button(
 
                         "error":
                             str(e),
-
                     }
-
                 )
-
 
             # ------------------------------------------------
             # Progress
@@ -1992,16 +1845,12 @@ if st.button(
             )
 
             progress.progress(
-
                 percent,
-
                 text=(
                     f"Progress: "
                     f"{index:,}/{target_count:,}"
                 ),
-
             )
-
 
         # ----------------------------------------------------
         # Finish
@@ -2010,7 +1859,6 @@ if st.button(
         progress.empty()
 
         status_text.empty()
-
 
         st.success(
             f"""
@@ -2023,7 +1871,6 @@ if st.button(
             รวม: {target_count:,}
             """
         )
-
 
         # ----------------------------------------------------
         # Errors
@@ -2040,40 +1887,32 @@ if st.button(
             )
 
             st.dataframe(
-
                 error_df,
-
                 width="stretch",
-
                 hide_index=True,
             )
-
-
-        time.sleep(1)
 
         st.rerun()
 
 
 # ============================================================
-# 37. Vector Data
+# 34. Vector Data
 # ============================================================
+
+st.divider()
 
 st.subheader(
     "🔢 Vector Data"
 )
 
 vector_sample = list(
-
     collection.find(
-
         {
             VECTOR_FIELD: {
                 "$exists": True
             }
         },
-
         {
-
             "_id": 0,
 
             "รหัส": 1,
@@ -2087,16 +1926,12 @@ vector_sample = list(
             DIMENSION_FIELD: 1,
 
             VECTOR_FIELD: 1,
-
         },
-
     )
-
     .sort(
         "รหัส",
         1,
     )
-
     .limit(10)
 )
 
@@ -2113,9 +1948,7 @@ if vector_sample:
         )
 
         vector_preview_rows.append(
-
             {
-
                 "รหัส":
                     item.get(
                         "รหัส",
@@ -2143,9 +1976,7 @@ if vector_sample:
                         )
                         + " ..."
                     ),
-
             }
-
         )
 
     vector_preview_df = (
@@ -2155,11 +1986,8 @@ if vector_sample:
     )
 
     st.dataframe(
-
         vector_preview_df,
-
         width="stretch",
-
         hide_index=True,
     )
 
@@ -2171,7 +1999,7 @@ else:
 
 
 # ============================================================
-# 38. Refresh
+# 35. Refresh
 # ============================================================
 
 st.divider()
@@ -2185,7 +2013,7 @@ if st.button(
 
 
 # ============================================================
-# 39. Footer
+# 36. Footer
 # ============================================================
 
 st.divider()
@@ -2195,4 +2023,3 @@ st.caption(
     "MongoDB Atlas • "
     "Sentence Transformers"
 )
-

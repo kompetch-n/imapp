@@ -1,0 +1,4 @@
+kompetchn_db_user
+B4U0UFSyVRlAmYd1
+
+mongodb+srv://kompetchn_db_user:B4U0UFSyVRlAmYd1@cluster0.385cdj3.mongodb.net/?appName=Cluster0
